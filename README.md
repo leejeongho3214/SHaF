@@ -1,4 +1,4 @@
-# Enhancing 3D Hand Pose Estimation Using SHaF: Synthetic Hand Dataset Including a Forearm ([APIN 2024](https://doi.org/10.1007/s10489-024-05665-x) ✨✨
+# Enhancing 3D Hand Pose Estimation Using SHaF: Synthetic Hand Dataset Including a Forearm ([APIN 2024](https://doi.org/10.1007/s10489-024-05665-x)) ✨✨
 It is a novel synthetic hand dataset called Synthetic Hand Dataset Including a Forearm (SHaF) and an efficient transformer-based three-dimensional (3D) hand pose estimation model. This model achieves the superior performance of the estimation model over that of previous state-of-the-art (SOTA) models.
 
  <img src="docs/model.png" width="650"> </br></br>
