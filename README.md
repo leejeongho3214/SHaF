@@ -5,7 +5,7 @@
 
 Code repository for the paper: **"Enhancing 3D hand pose estimation using SHaF: synthetic hand dataset including a forearm"**, published in *Applied Intelligence(APIN)*, 2024.
 
->**Authors:** Jeongho Lee¹, Changho Kim¹, Jaeyun Kim¹, Seon Ho Kim², Younggeun Choi¹, Sang-Il Choi¹<br>
+**Authors:** Jeongho Lee¹, Changho Kim¹, Jaeyun Kim¹, Seon Ho Kim², Younggeun Choi¹, Sang-Il Choi¹<br>
 ¹ Dankook University, South Korea <br>
 ² University of Southern California, United States
 
