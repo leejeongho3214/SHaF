@@ -1,7 +1,6 @@
 # Enhancing 3D Hand Pose Estimation Using SHaF  
 [![Paper](https://img.shields.io/badge/Paper-APIN_2024-blue)](https://doi.org/10.1007/s10489-024-05665-x)
-[![Checkpoint](https://img.shields.io/badge/Checkpoint-Download-green)](https://doi.org/10.1007/s10489-024-05665-x)
-[![Dataset](https://img.shields.io/badge/Dataset-APIN_2024-red)](https://doi.org/10.1007/s10489-024-05665-x)
+[![Git](https://img.shields.io/badge/GitHub-LightHand-black?logo=github)](https://github.com/jeongho3214/LightHand)
 
 Code repository for the paper: **"Enhancing 3D hand pose estimation using SHaF: synthetic hand dataset including a forearm"**, published in *Applied Intelligence(APIN)*, 2024.
 
