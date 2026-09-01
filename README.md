@@ -8,7 +8,7 @@
 [![LightHand99K](https://img.shields.io/badge/GitHub-LightHand99K-6f42c1?logo=github)](https://github.com/leejeongho3214/LightHand)
 [![Contact](https://img.shields.io/badge/Contact-Email-informational?logo=gmail)](mailto:72210297@dankook.ac.kr)
 
-**Jeongho Lee**¹ · Changho Kim¹ · Jaeyun Kim¹ · Seon Ho Kim² · Younggeun Choi¹ · Sang-Il Choi¹
+**Jeongho Lee**¹ · Jaeyun Kim¹ · Seon Ho Kim² · Sang-Il Choi¹
 
 ¹ Dankook University, South Korea &nbsp;&nbsp;·&nbsp;&nbsp; ² University of Southern California, United States
 
@@ -246,8 +246,7 @@ python eval.py <run_name>
 @article{lee2024shaf,
   title   = {Enhancing 3D hand pose estimation using SHaF:
              synthetic hand dataset including a forearm},
-  author  = {Lee, Jeongho and Kim, Changho and Kim, Jaeyun and Kim, Seon Ho
-             and Choi, Younggeun and Choi, Sang-Il},
+  author  = {Lee, Jeongho and Kim, Jaeyun and Kim, Seon Ho and Choi, Sang-Il},
   journal = {Applied Intelligence},
   volume  = {54},
   number  = {20},
