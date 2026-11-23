@@ -508,8 +508,12 @@ class HighResolutionNet(nn.Module):
             elif isinstance(m, nn.BatchNorm2d):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
+        if not os.path.isfile(pretrained):
+            print("WARNING: HRNet ImageNet weights not found at '%s'; the backbone "
+                  "is randomly initialised (harmless when a trained checkpoint is loaded "
+                  "afterwards, e.g. in frei_eval_3d.py). See README (Data preparation)." % pretrained)
         if os.path.isfile(pretrained):
-            pretrained_dict = torch.load(pretrained)
+            pretrained_dict = torch.load(pretrained, map_location="cpu")
             model_dict = self.state_dict()
             pretrained_dict = {k: v for k, v in pretrained_dict.items()
                                if k in model_dict.keys()}

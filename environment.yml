@@ -1,0 +1,28 @@
+name: shaf
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.9
+  - pip
+  - pytorch=2.1.0
+  - torchvision=0.16.0
+  - pytorch-cuda=12.1
+  - pip:
+      - numpy==1.23.1
+      - scipy==1.10.1
+      - opencv-contrib-python-headless==4.11.0.86
+      - pillow==11.1.0
+      - matplotlib==3.9.4
+      - tqdm==4.67.1
+      - PyYAML==6.0.2
+      - yacs==0.1.8
+      - easydict==1.13
+      - imageio==2.37.2
+      - tensorboardX==2.6.5
+      - six==1.17.0
+      - requests==2.32.5
+# pytorch3d (0.7.8) is only needed for DARTset training; install it separately:
+# https://github.com/facebookresearch/pytorch3d/blob/main/INSTALL.md

@@ -16,9 +16,16 @@ from functools import wraps
 from hashlib import sha256
 from io import open
 
-import boto3
 import requests
-from botocore.exceptions import ClientError
+# boto3/botocore are only needed for s3:// URLs, which this project never uses.
+try:
+    import boto3
+    from botocore.exceptions import ClientError
+except ImportError:
+    boto3 = None
+
+    class ClientError(Exception):
+        pass
 from tqdm import tqdm
 
 try:

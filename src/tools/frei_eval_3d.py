@@ -4,7 +4,6 @@ import numpy as np
 import sys
 
 os.environ["MKL_THREADING_LAYER"] = "GNU"
-os.environ["CUDA_VISIBLE_DEVICES"] = "2"
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 import torch
 from torch.utils import data
@@ -34,8 +33,15 @@ def dump(pred_out_path, xyz_pred_list, verts_pred_list):
 def main(args):
     resume_path = os.path.join('output', args.name)
     _model = get_our_net(args)
-    state_dict = torch.load(os.path.join(resume_path, "checkpoint-good/state_dict.bin"))
-    _model.load_state_dict(state_dict["model_state_dict"], strict=False)
+    state_dict = torch.load(
+        os.path.join(resume_path, "checkpoint-good/state_dict.bin"),
+        map_location="cpu",
+        weights_only=False,
+    )
+    # strict=True: the architecture flags (--backbone, --which_gcn, --graph_num,
+    # --num_hidden_layers) must match the ones used for training. With strict=False
+    # a mismatch would silently leave layers randomly initialised.
+    _model.load_state_dict(state_dict["model_state_dict"], strict=True)
     _model.cuda()
 
     test_dataset = make_hand_data_loader(

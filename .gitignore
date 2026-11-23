@@ -1,36 +1,17 @@
-*.txt
-*.jpg
-*.png
-*.pyc
-pred*.json
-/models
 __pycache__/
+*.py[cod]
 .DS_Store
 .vscode/
+.idea/
+.env
 
-!docs/*.png
-manotorch
-pytorch3d
-manopth
-eval_image
-eval_json
-final_model
-output
-tensorboard
-/datasets
+# data and third-party weights (download, do not commit)
+/datasets/
+/models/**/*.pth
+/models/**/*.pth.tar
 
-!packagelist.txt
-!requirements.txt
-DARTset_utils.py
-check_joint_num.py
-frei.py
-our.py
-visualize_joint_in_image.py
-
-/.env
-/camera_vis.py
-/t-sne.ipynb
-/freihand
-/T-sne_image
-example.ipynb
-GraFormer
+# training / evaluation outputs
+src/tools/output/
+src/tools/tensorboard/
+src/tools/general_scores.txt
+src/tools/released/

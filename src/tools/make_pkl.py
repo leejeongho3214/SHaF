@@ -3,7 +3,7 @@ from matplotlib import pyplot as plt
 from tqdm import tqdm
 import os
 
-sys.path.append("/home/jeongho/tmp/Wearable_Pose_Model")
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 from PIL import Image
 from torch.utils.data import Dataset
 import numpy as np
@@ -14,11 +14,6 @@ import torch
 import math
 import json
 import pickle
-
-try:
-    from src.utils.dart_loader import DARTset
-except:
-    print("Not import dart")
 
 np.random.seed(77)
 np.set_printoptions(precision=6, suppress=True)

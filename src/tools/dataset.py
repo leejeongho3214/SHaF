@@ -10,7 +10,7 @@ from src.datasets.build import make_hand_data_loader
 from src.utils.bar import colored
 from src.utils.comm import is_main_process
 from src.utils.miscellaneous import mkdir
-import pickle5 as pickle
+import pickle
 import sys
 import os
 from src.utils.dataset_loader import GAN, SyntheticHands
@@ -27,7 +27,6 @@ from src.utils.image_ops import (
 )
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
-from src.utils.dart_loader import DARTset
 
 
 np.random.seed(77)
@@ -77,6 +76,9 @@ def build_dataset(args):
         train_dataset = ConcatDataset([train_dataset, o_dataset])
 
     elif args.dataset == "dart":
+        # imported lazily so that pytorch3d is only required for DARTset runs
+        from src.utils.dart_loader import DARTset
+
         train_dataset = DARTset(args, data_split="train")
         test_dataset = DARTset(args, data_split="test")
 
@@ -98,313 +100,6 @@ def build_dataset(args):
         train_dataset, test_dataset = random_split(d_dataset, [0.9, 0.1], generator=torch.Generator().manual_seed(523))
 
     return train_dataset, test_dataset
-
-
-class CustomDataset_g(Dataset):
-    def __init__(self, args, path):
-        self.args = args
-        self.noise_factor = 0.4
-        self.path = path
-        self.phase = path.split("/")[-1]
-        self.root = "/".join(path.split("/")[:-2])
-        self.pkl_path = f"{path}/anno.pkl"
-        self.bg_path = "../../datasets/data_230710/background"
-        self.bg_list = os.listdir(self.bg_path)
-        self.img_path = os.path.join(self.root, f"images/{self.phase}")
-        self.raw_res = 800
-        self.img_res = 224
-        self.scale_factor = 0.25
-        self.rot_factor = 90
-        if path.split("/")[-1] == "train":
-            self.ratio_of_dataset = self.args.ratio_of_dataset
-        else:
-            self.ratio_of_dataset = 1
-
-        self.args.logger.debug(
-            "phase: {} => noise_factor: {}, scale_factor: {}, rot_factor: {}, raw_res: {}, img_res: {}".format(
-                self.phase,
-                self.__dict__.get("noise_factor"),
-                self.__dict__.get("scale_factor"),
-                self.__dict__.get("rot_factor"),
-                self.__dict__.get("raw_res"),
-                self.__dict__.get("img_res"),
-            )
-        )
-
-        with open(self.pkl_path, "rb") as st_json:
-            self.meta = pickle.load(st_json)
-
-    def __len__(self):
-        return int(self.ratio_of_dataset * (len(self.meta) - 1))
-
-    def make_cache(self):
-        count = 0
-        new_meta = []
-        for idx in tqdm(range(len(self.meta))):
-            calibrationed_joint = np.array(self.meta[idx]["joint_2d"])
-            loof_count = 0
-            while loof_count < 5:
-                r = min(
-                    2 * self.rot_factor,
-                    max(-2 * self.rot_factor, np.random.randn() * self.rot_factor),
-                )
-                scale = min(
-                    1.1,
-                    max(
-                        1 - self.scale_factor, np.random.randn() * self.scale_factor + 1
-                    ),
-                )
-                bbox = [
-                    min(calibrationed_joint[:, 0]),
-                    min(calibrationed_joint[:, 1]),
-                    max(calibrationed_joint[:, 0]),
-                    max(calibrationed_joint[:, 1]),
-                ]
-
-                trans = (
-                    int((bbox[0] + bbox[2]) / 2) - self.raw_res / 2,
-                    int((bbox[1] + bbox[3]) / 2) - self.raw_res / 2,
-                )
-
-                if self.args.center:
-                    calibrationed_joint = calibrationed_joint - trans
-
-                joint_2d = self.j2d_processing(np.array(calibrationed_joint), scale, r)
-                if not any(
-                    joint[idx] < self.raw_res * 0.1 or joint[idx] > self.raw_res * 0.9
-                    for joint in joint_2d
-                    for idx in range(2)
-                ):
-                    break
-                loof_count += 1
-                if loof_count == 4:
-                    break
-            if loof_count == 4:
-                continue
-
-            joint_3d = np.array(self.meta[idx]["camera_coor_3d"])
-
-            rot_mat = np.eye(3)
-            rot_rad = -r * np.pi / 180
-            sn, cs = np.sin(rot_rad), np.cos(rot_rad)
-            rot_mat[0, :2] = [cs, -sn]
-            rot_mat[1, :2] = [sn, cs]
-            joint_3d = np.einsum("ij,kj->ki", rot_mat, joint_3d)
-
-            joint_3d = (joint_3d - joint_3d[0]) * 100
-            joint_3d[:, 0] = -joint_3d[:, 0]
-            new_meta.append(
-                {
-                    "joint_2d": joint_2d.tolist(),
-                    "joint_3d": joint_3d,
-                    "rot": int(r),
-                    "scale": round(scale, 4),
-                    "file_name": self.meta[idx]["file_name"],
-                    "bbox": bbox,
-                }
-            )
-            count += 1
-
-        with open(self.cache_path, "wb") as f:
-            pickle.dump(new_meta, f, protocol=pickle.HIGHEST_PROTOCOL)
-        print(
-            colored(f"Saving the cache file {self.cache_path.split('/')[-1]}", "green")
-        )
-
-        return new_meta
-
-    def __getitem__(self, idx):
-        image, joint_2d, joint_3d = self.aug(idx)
-
-        image = self.img_preprocessing(idx, image)
-
-        transformed_img = transforms.Compose(
-            [
-                transforms.Normalize(
-                    mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
-                ),
-                transforms.Resize((224, 224), antialias=True),
-            ]
-        )(image)
-
-        heatmap = GenerateHeatmap(56, 21)((joint_2d * 224) / 4)
-
-        return transformed_img, joint_2d, joint_3d, heatmap
-
-    def img_preprocessing(self, idx, rgb_img):
-        # in the rgb image we add pixel noise in a channel-wise manner
-        if self.phase == "train":
-            if idx < self.__len__():
-                pn = np.random.uniform(1 - self.noise_factor, 1 + self.noise_factor, 3)
-            else:
-                pn = np.ones(3)
-        else:
-            pn = np.ones(3)
-
-        rgb_img[:, :, 0] = np.minimum(255.0, np.maximum(0.0, rgb_img[:, :, 0] * pn[0]))
-        rgb_img[:, :, 1] = np.minimum(255.0, np.maximum(0.0, rgb_img[:, :, 1] * pn[1]))
-        rgb_img[:, :, 2] = np.minimum(255.0, np.maximum(0.0, rgb_img[:, :, 2] * pn[2]))
-        rgb_img = np.transpose(rgb_img.astype("float32"), (2, 0, 1)) / 255.0
-        rgb_img = torch.from_numpy(rgb_img)
-        return rgb_img
-
-    def get_value(self):
-        rot = min(
-            2 * self.rot_factor,
-            max(-2 * self.rot_factor, np.random.randn() * self.rot_factor),
-        )
-        scale = min(
-            1 + self.scale_factor,
-            max(1 - self.scale_factor, np.random.randn() * self.scale_factor + 1),
-        )
-
-        return rot, scale
-
-    def j2d_processing(self, kp, scale, r):
-        """Process gt 2D keypoints and apply all augmentation transforms."""
-        nparts = kp.shape[0]
-        for i in range(nparts):
-            kp[i, 0:2] = transform(
-                kp[i, 0:2] + 1,
-                (self.raw_res / 2, self.raw_res / 2),
-                scale,
-                [self.raw_res, self.raw_res],
-                rot=r,
-            )
-        return kp
-
-    def aug(self, idx):
-        name = "/".join(self.meta[idx]["file_name"].split("/")[1:])
-        image = cv2.imread(os.path.join(self.img_path, name))  # PIL image
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        joint_2d = np.array(self.meta[idx]["joint_2d"])
-        joint_3d = np.array(self.meta[idx]["camera_coor_3d"])
-
-        joint_3d_transformed = torch.tensor(joint_3d - joint_3d[0]).float()
-        scale = self.meta[idx]["scale"]
-        rot = self.meta[idx]["rot"]
-        bbox = self.meta[idx]["bbox"]
-
-        center = (
-            int((bbox[0] + bbox[2]) / 2),
-            int((bbox[1] + bbox[3]) / 2),
-        )
-
-        bg_img = cv2.imread(
-            os.path.join(self.bg_path, self.bg_list[idx % len(self.bg_list)])
-        )
-        bg_img = cv2.cvtColor(bg_img, cv2.COLOR_BGR2RGB)
-        bg_img = cv2.resize(bg_img, (image.shape[0], image.shape[1]))
-
-        if self.args.arm:
-            new_image = np.zeros((image.shape[0], image.shape[1], 3))
-            index = np.where(
-                (cropped_img[:, :, 0] != 0)
-                | (cropped_img[:, :, 1] != 0)
-                | (cropped_img[:, :, 2] != 0)
-            )
-            index = np.array(index)
-            bbox_image = [min(index[0]), max(index[0]), min(index[1]), max(index[1])]
-            arm_bbox = [
-                min(joint_2d[:, 1]),
-                max(joint_2d[:, 1]),
-                min(joint_2d[:, 0]),
-                max(joint_2d[:, 0]),
-            ]
-            dia_of_bbox = (
-                np.sqrt(
-                    (arm_bbox[0] - arm_bbox[1]) ** 2 + (arm_bbox[2] - arm_bbox[3]) ** 2
-                )
-                / image.shape[0]
-            )
-            dia_of_hand = (
-                np.sqrt(
-                    (bbox_image[0] - bbox_image[1]) ** 2
-                    + (bbox_image[2] - bbox_image[3]) ** 2
-                )
-                / image.shape[0]
-            )
-            ratio_of_dia = dia_of_bbox / dia_of_hand
-            a = int(max(arm_bbox[0] - (ratio_of_dia * 100), 0))
-            b = int(min(arm_bbox[1] + (ratio_of_dia * 100), image.shape[0]))
-            c = int(max(arm_bbox[2] - (ratio_of_dia * 100), 0))
-            d = int(min(arm_bbox[3] + (ratio_of_dia * 100), image.shape[0]))
-            new_image[a:b, c:d] = cropped_img[a:b, c:d]
-            cropped_img = new_image.copy()
-
-        if self.args.center:
-            if self.args.noise:
-                cropped_img = crop(
-                    image, center, scale, [self.raw_res, self.raw_res], rot=rot
-                )
-                index = np.where(
-                    (cropped_img[:, :, 0] == 0)
-                    & (cropped_img[:, :, 1] == 0)
-                    & (cropped_img[:, :, 2] == 0)
-                )
-                cropped_img[index] = bg_img[index]
-            else:
-                index = np.where(
-                    (image[:, :, 0] == 0)
-                    & (image[:, :, 1] == 0)
-                    & (image[:, :, 2] == 0)
-                )
-                image[index] = bg_img[index]
-                cropped_img = crop(
-                    image, center, scale, [self.raw_res, self.raw_res], rot=rot
-                )
-        else:
-            if self.args.noise:
-                cropped_img = crop(
-                    image,
-                    (self.raw_res / 2, self.raw_res / 2),
-                    scale,
-                    [self.raw_res, self.raw_res],
-                    rot=rot,
-                )
-                index = np.where(
-                    (cropped_img[:, :, 0] == 0)
-                    & (cropped_img[:, :, 1] == 0)
-                    & (cropped_img[:, :, 2] == 0)
-                )
-                cropped_img[index] = bg_img[index]
-            else:
-                index = np.where(
-                    (image[:, :, 0] == 0)
-                    & (image[:, :, 1] == 0)
-                    & (image[:, :, 2] == 0)
-                )
-                image[index] = bg_img[index]
-                cropped_img = crop(
-                    image,
-                    (self.raw_res / 2, self.raw_res / 2),
-                    scale,
-                    [self.raw_res, self.raw_res],
-                    rot=rot,
-                )
-
-        joint_2d = joint_2d / self.raw_res
-        joint_2d, joint_3d = (
-            torch.tensor(joint_2d).float(),
-            torch.tensor(joint_3d).float(),
-        )
-
-        image = cv2.resize(cropped_img, (224, 224), interpolation=cv2.INTER_AREA)
-
-        return image, joint_2d, joint_3d_transformed
-
-    def j3d_processing(self, S, r):
-        """Process gt 3D keypoints and apply all augmentation transforms."""
-        # in-plane rotation
-        rot_mat = np.eye(3)
-        if not r == 0:
-            rot_rad = -r * np.pi / 180
-            sn, cs = np.sin(rot_rad), np.cos(rot_rad)
-            rot_mat[0, :2] = [cs, -sn]
-            rot_mat[1, :2] = [sn, cs]
-        S = np.einsum("ij,kj->ki", rot_mat, S)
-        S = S.astype("float32")
-        return S
 
 
 class AverageMeter(object):
@@ -603,7 +298,7 @@ class CustomDataset_g2(object):
         path = None
     ):
         self.args = args
-        with open(os.path.join(path, 'annotations/train/anno_0.1M.pkl'), "rb") as st_json:
+        with open(os.path.join(path, 'annotations/train', getattr(args, 'shaf_anno', 'anno_0.1M.pkl')), "rb") as st_json:
             self.meta = pickle.load(st_json)
 
         self.img_path = os.path.join(path, 'images/train')
