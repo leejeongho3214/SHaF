@@ -17,6 +17,9 @@ We propose:
 
 <img src="docs/model.png" width="650">
 
+> [!NOTE]
+> This repository releases the **code only**. The SHaF dataset and the trained checkpoints are **not publicly released**.
+
 ---
 
 ## 📁 Directory Structure
@@ -59,6 +62,7 @@ pip install -r requirements.txt
 Notes:
 - Use PyTorch < 2.6 or keep the `weights_only=False` arguments in the code: checkpoints contain non-tensor objects.
 - Keep NumPy < 2 (`np.trapz` is used in the evaluation).
+- If installing torch from the CUDA index fails with a `flit_core` build error, upgrade pip first (`pip install -U pip`).
 
 ---
 
@@ -113,7 +117,7 @@ Download the FreiHAND TSV files prepared by [MeshGraphormer](https://github.com/
 
 ### SHaF
 <a name="shaf"></a>
-The SHaF dataset and the trained checkpoints are not distributed with this repository because of their size.
+The SHaF dataset and the trained checkpoints are not publicly released; this repository contains the code only.
 The expected layout is shown above.
 Each entry of `anno_*.pkl` is a dict with `file_name`, `joint_2d` (21×2, pixels in the 800×800 render),
 `camera_coor_3d` (21×3), `bbox`, `rot`, `scale` and a few other fields.
